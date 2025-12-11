@@ -3,6 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import sys
 from GUI.board_screen import BoardView
+from Core.board import Board
 
 
 
