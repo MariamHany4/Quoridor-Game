@@ -17,50 +17,51 @@ class BoardView(QWidget):
         self.initUI()
 
     def initUI(self):
-   
+
         main_layout = QHBoxLayout()
         board_container = QVBoxLayout()
 
-        # Background gradient
+        # ▣ Background: Beige → Wood Tan Gradient
         self.setStyleSheet("""
             QWidget {
                 background: qlineargradient(
                     spread:pad, x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #F3E5F5, stop:1 #D1C4E9
+                    stop:0 #F4E8D3, stop:1 #D2B48C
                 );
             }
         """)
 
-     
+        # ▣ Title styled with dark wood
         title = QLabel(f"Quoridor - {self.mode} Mode")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             font-size: 34px;
-            font-weight: bold;
-            color: #4A148C;
+            font-weight: 900;
+            color: #4E2A1E;   /* Dark Walnut */
             padding: 15px;
-            border-radius: 15px;
-            background-color: rgba(255,255,255,0.7);
-            margin-bottom: 20px;
+            border-radius: 12px;
+            background-color: rgba(255, 248, 230, 0.75);
+            margin-bottom: 25px;
         """)
         board_container.addWidget(title)
 
+        # ▣ Board grid with wooden tiles
         grid_widget = QWidget()
         grid_layout = QGridLayout()
-        grid_layout.setSpacing(12)
+        grid_layout.setSpacing(10)
 
         tile_style = """
             QPushButton {
-                background-color: #F8F5FF;
-                border: 2px solid #C7B7E5;
-                border-radius: 10px;
-                min-width: 60px;
-                min-height: 60px;
-                box-shadow: 3px 3px 8px rgba(0,0,0,0.3);
+                background-color: #F2DFC2;     /* Light Wood */
+                border: 2px solid #B79267;      /* Mid-Wood Border */
+                border-radius: 12px;
+                min-width: 65px;
+                min-height: 65px;
+                box-shadow: 2px 2px 6px rgba(0,0,0,0.25);
             }
             QPushButton:hover {
-                background-color: #E5DAFF;
-                border: 2px solid #9C7EDB;
+                background-color: #E8D4B8;
+                border: 2px solid #A67C52;
             }
         """
 
@@ -78,14 +79,15 @@ class BoardView(QWidget):
         grid_widget.setLayout(grid_layout)
         board_container.addWidget(grid_widget)
 
-       
+        # ▣ Player spawn (pawns)
         p1_r, p1_c = self.board_created.pawns["P1"]
         p2_r, p2_c = self.board_created.pawns["P2"]
 
-        self.placePawn(p1_r, p1_c, "#4A148C")
-        self.placePawn(p2_r, p2_c, "#7E57C2")
+        # Pawns match the wood theme but still distinct
+        self.placePawn(p1_r, p1_c, "#5D4037")  # Dark Brown Pawn
+        self.placePawn(p2_r, p2_c, "#8D6E63")  # Light Brown Pawn
 
-
+        # ▣ Side panel
         side_panel = QVBoxLayout()
         side_panel.setAlignment(Qt.AlignTop)
 
@@ -93,17 +95,17 @@ class BoardView(QWidget):
         self.label_turn.setStyleSheet("""
             font-size: 24px;
             font-weight: bold;
-            color: #4A148C;
+            color: #4E2A1E;
             padding: 10px;
-            background-color: rgba(255,255,255, 0.8);
-            border-radius: 14px;
+            background-color: rgba(255, 248, 230, 0.85);
+            border-radius: 12px;
         """)
         side_panel.addWidget(self.label_turn)
 
-        # Buttons
+        # ▣ Buttons - wooden theme
         button_style = """
             QPushButton {
-                background-color: #7E57C2;
+                background-color: #A97458;
                 color: white;
                 padding: 14px;
                 border-radius: 16px;
@@ -111,7 +113,7 @@ class BoardView(QWidget):
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #6A45AF;
+                background-color: #8B5A2B;
             }
         """
 
@@ -138,7 +140,9 @@ class BoardView(QWidget):
 
         current_player = self.board_created.current_player
         old_r, old_c = self.board_created.pawns[current_player]
-        color = "#4A148C" if current_player == "P1" else "#7E57C2"
+
+        # Pawn colors remain consistent:
+        color = "#5D4037" if current_player == "P1" else "#8D6E63"
 
         moved = self.board_created.move_pawn(current_player, (r, c))
 
@@ -153,11 +157,11 @@ class BoardView(QWidget):
         btn = self.cells[(row, col)]
         btn.setStyleSheet("""
             QPushButton {
-                background-color: #F8F5FF;
-                border: 2px solid #C7B7E5;
-                border-radius: 10px;
-                min-width: 60px;
-                min-height: 60px;
+                background-color: #F2DFC2;
+                border: 2px solid #B79267;
+                border-radius: 12px;
+                min-width: 65px;
+                min-height: 65px;
             }
         """)
 
@@ -166,11 +170,11 @@ class BoardView(QWidget):
         btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {color};
-                border-radius: 30px;
-                border: 4px solid white;
-                min-width: 60px;
-                min-height: 60px;
-                box-shadow: 0px 0px 15px rgba(0,0,0,0.4);
+                border-radius: 32px;
+                border: 3px solid #FFFFFF;
+                min-width: 65px;
+                min-height: 65px;
+                box-shadow: 0px 0px 12px rgba(0,0,0,0.35);
             }}
         """)
 
@@ -184,7 +188,7 @@ class BoardView(QWidget):
         p1_r, p1_c = self.board_created.pawns["P1"]
         p2_r, p2_c = self.board_created.pawns["P2"]
 
-        self.placePawn(p1_r, p1_c, "#4A148C")
-        self.placePawn(p2_r, p2_c, "#7E57C2")
+        self.placePawn(p1_r, p1_c, "#5D4037")
+        self.placePawn(p2_r, p2_c, "#8D6E63")
 
         self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")

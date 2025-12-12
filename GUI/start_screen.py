@@ -21,23 +21,24 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
 
+        # ▣ Background: Beige → Wood Brown Gradient
         self.setStyleSheet("""
             QMainWindow {
                 background: qlineargradient(
                     spread:pad, x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #EDE7F6, stop:1 #D1C4E9
+                    stop:0 #F8E6C6, stop:1 #D2B48C
                 );
             }
         """)
 
-
+        # ▣ Central wooden frame
         frame = QFrame()
         frame.setStyleSheet("""
             QFrame {
-                background-color: white;
+                background-color: #FFF8EE;
                 border-radius: 25px;
                 padding: 40px;
-                border: 4px solid #B39DDB;
+                border: 4px solid #8B5A2B;   /* Dark Wood */
             }
         """)
 
@@ -49,12 +50,13 @@ class MainWindow(QMainWindow):
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(30)
 
+        # ▣ Title (Dark Walnut)
         title = QLabel("Quoridor Game")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             font-size: 42px;
             font-weight: 900;
-            color: #4A148C;
+            color: #4E2A1E;
             margin-bottom: 20px;
         """)
 
@@ -62,16 +64,16 @@ class MainWindow(QMainWindow):
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
             font-size: 22px;
-            color: #6A1B9A;
+            color: #6B3E2E;
             margin-bottom: 35px;
         """)
 
-   
+        # ▣ Wooden buttons (Gradient Wood)
         button_style = """
             QPushButton {
                 background-color: qlineargradient(
                     spread:pad, x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #AB47BC, stop:1 #7E57C2
+                    stop:0 #A97458, stop:1 #8B5A2B
                 );
                 color: white;
                 padding: 18px;
@@ -82,17 +84,15 @@ class MainWindow(QMainWindow):
                 letter-spacing: 1px;
             }
             QPushButton:hover {
-                background-color: #9C27B0;
-                transform: scale(1.05);
+                background-color: #9C6B54;
             }
             QPushButton:pressed {
-                background-color: #6A1B9A;
+                background-color: #70452A;
             }
         """
 
         self.ai_player.setStyleSheet(button_style)
         self.human_player.setStyleSheet(button_style)
-
 
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(QWidget())
         self.centralWidget().setLayout(container_layout)
 
- 
+
     def open_ai_mode(self):
         self.board = BoardView("AI")
         self.board.show()
