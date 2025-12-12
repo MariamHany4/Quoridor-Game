@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
 
-        # ▣ Background: Beige → Wood Brown Gradient
+      
         self.setStyleSheet("""
             QMainWindow {
                 background: qlineargradient(
@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # ▣ Central wooden frame
+ 
         frame = QFrame()
         frame.setStyleSheet("""
             QFrame {
@@ -68,7 +68,6 @@ class MainWindow(QMainWindow):
             margin-bottom: 35px;
         """)
 
-        # ▣ Wooden buttons (Gradient Wood)
         button_style = """
             QPushButton {
                 background-color: qlineargradient(
