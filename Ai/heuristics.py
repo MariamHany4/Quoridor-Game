@@ -45,7 +45,11 @@ def shortest_path(board, player):
                 continue
             if board.is_wall_blocking(pos, move):
                 continue
+<<<<<<< HEAD
                    
+=======
+
+>>>>>>> main
             if move not in visited:
                 new_g = g_score + 1
                 new_f = new_g + a_star_heuristic(move, goal_row)
