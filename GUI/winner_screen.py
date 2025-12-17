@@ -2,7 +2,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
-
 # ---------------- WINNER VIEW ----------------
 class WinnerView(QWidget):
     def __init__(self, parent=None):
