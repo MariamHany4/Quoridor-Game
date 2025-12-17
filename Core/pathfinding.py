@@ -1,6 +1,5 @@
 from collections import deque
 
-
 def find_path(start_pos, goals, blocked_edges, grid_size):
     """
     Breadth-first search to find a path from start_pos to any goal square.
