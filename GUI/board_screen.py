@@ -23,8 +23,8 @@ class BoardView(QWidget):
         super().__init__()
         self.mode = mode
         self.difficulty = difficulty
-
-
+        self.undo_stack = []
+        self.redo_stack = []
 
         self.setWindowTitle("Quoridor - Game Board")
         self.setGeometry(600, 200, 980, 900)
@@ -43,8 +43,7 @@ class BoardView(QWidget):
 
         self.initUI()
         if self.mode == "AI":
-            from Ai.ai_player import AIPlayer
-            self.ai_player_obj = AIPlayer("P2", self.difficulty)
+            self.ai_player_obj = AIPlayer(player="P2", difficulty=self.difficulty)
 
     def initUI(self):
         """
@@ -315,6 +314,40 @@ class BoardView(QWidget):
         main_layout_wrapper.addWidget(content_widget)
         self.setLayout(main_layout_wrapper)
 
+        # Game Control Buttons Style (same as Restart / Back)
+        control_button_style = """
+        QPushButton {
+            background: qlineargradient(
+                x1:0, y1:0, x2:0, y2:1,
+                stop:0 #EC407A,
+                stop:1 #AD1457
+            );
+            color: #FFF0F7;
+            padding: 16px;
+            border-radius: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            border: 2px solid #880E4F;
+        }
+        QPushButton:hover {
+            background: #C2185B;
+        }
+        """
+
+        # Undo button
+        undo_btn = QPushButton("Undo")
+        undo_btn.setStyleSheet(control_button_style)
+        undo_btn.clicked.connect(self.undo)
+
+        # Redo button
+        redo_btn = QPushButton("Redo")
+        redo_btn.setStyleSheet(control_button_style)
+        redo_btn.clicked.connect(self.redo)
+
+        # Add to side panel
+        side_panel.addWidget(undo_btn)
+        side_panel.addWidget(redo_btn)
+
     def createTitleBar(self):
         """
                     Create custom title bar like start screen
@@ -456,11 +489,22 @@ class BoardView(QWidget):
 
         # ===== MOVE MODE =====
         if self.action_mode == "move":
+
             old_r, old_c = self.board_created.pawns[current_player]
             color = "#AD1457" if current_player == "P1" else "#F48FB1"
 
             moved = self.board_created.move_pawn(current_player, (r, c))
             if moved:
+                if moved:
+                    # Save action for undo
+                    self.undo_stack.append({
+                        "type": "move",
+                        "player": current_player,
+                        "from": (old_r, old_c),
+                        "to": (r, c)
+                    })
+                    self.redo_stack.clear()  # Clear redo after new action
+
                 # Update board UI
                 self.clearCell(old_r, old_c)
                 self.placePawn(r, c, color)
@@ -494,6 +538,15 @@ class BoardView(QWidget):
             )
 
             if placed:
+                if placed:
+                    self.undo_stack.append({
+                        "type": "wall",
+                        "player": current_player,
+                        "pos": (r, c),
+                        "orientation": self.wall_orientation
+                    })
+                    self.redo_stack.clear()  # Clear redo after new action
+
                 print(f"{placing_player} placed wall at ({r}, {c}) - {self.wall_orientation}")
                 self.drawWall(r, c, self.wall_orientation, placing_player)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
@@ -886,27 +939,138 @@ class BoardView(QWidget):
         self.executeAction(action)
 
     def executeAction(self, action):
+        """
+        Execute an AI action (move or wall) safely.
+        """
+
         current_player = self.board_created.current_player
-        color = "#F48FB1"  # AI color (P2)
+        ai_color = "#F48FB1"  # AI pawn color (P2)
 
         if action["type"] == "move":
             old_r, old_c = self.board_created.pawns[current_player]
-            moved = self.board_created.move_pawn(current_player, action["to"])
-            if moved:
+            new_pos = action.get("to")
+
+            if new_pos and self.board_created.move_pawn(current_player, new_pos):
+                # Save for undo
+                self.undo_stack.append({
+                    "type": "move",
+                    "player": current_player,
+                    "from": (old_r, old_c),
+                    "to": new_pos
+                })
+                self.redo_stack.clear()
+
+                # Update UI
                 self.clearCell(old_r, old_c)
-                r, c = action["to"]
-                self.placePawn(r, c, color)
+                r, c = new_pos
+                self.placePawn(r, c, ai_color)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
 
+                # Check winner
                 winner = self.checkWinner(current_player, r)
                 if winner:
                     self.showSimpleWinner(winner)
+            else:
+                print("AI tried invalid move!")
+
 
         elif action["type"] == "wall":
-            placed = self.board_created.place_wall(
-                current_player, action["x"], action["y"], action["orientation"]
-            )
-            if placed:
-                self.drawWall(action["x"], action["y"], action["orientation"], current_player)
+
+            x, y = action.get("x"), action.get("y")
+
+            orientation = action.get("orientation")
+
+            if None not in (x, y, orientation) and self.board_created.place_wall(current_player, x, y, orientation):
+
+                # Save for undo
+
+                self.undo_stack.append({
+
+                    "type": "wall",
+
+                    "player": current_player,
+
+                    "pos": (x, y),
+
+                    "orientation": orientation
+
+                })
+
+                self.redo_stack.clear()
+
+                self.drawWall(x, y, orientation, current_player)
+
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
+
                 self.updateWallsLabel()
+
+            else:
+                print("AI tried invalid wall placement!")
+
+    def undo(self):
+        if not self.undo_stack:
+            return
+
+        action = self.undo_stack.pop()
+        self.redo_stack.append(action)
+
+        player = action["player"]
+
+        if action["type"] == "move":
+            # Move back
+            self.clearCell(*action["to"])
+            self.placePawn(*action["from"], "#AD1457" if player == "P1" else "#F48FB1")
+            self.board_created.pawns[player] = action["from"]
+            self.board_created.current_player = player
+
+        elif action["type"] == "wall":
+            # Remove wall visually and from board
+            self.removeWall(action["pos"], action["orientation"], player)
+            self.board_created.remove_wall(player, action["pos"], action["orientation"])
+
+        self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
+        self.updateWallsLabel()
+
+    def redo(self):
+        if not self.redo_stack:
+            return
+
+        action = self.redo_stack.pop()
+        self.undo_stack.append(action)
+
+        player = action["player"]
+
+        if action["type"] == "move":
+            self.clearCell(*action["from"])
+            self.placePawn(*action["to"], "#AD1457" if player == "P1" else "#F48FB1")
+            self.board_created.pawns[player] = action["to"]
+            self.board_created.current_player = player
+
+
+
+        elif action["type"] == "wall":
+
+            self.drawWall(*action["pos"], action["orientation"], player)
+
+            self.board_created.place_wall(player, *action["pos"], action["orientation"])
+
+            self.board_created.current_player = player
+
+        self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
+        self.updateWallsLabel()
+
+    def removeWall(self, pos, orientation, player):
+        x, y = pos
+        for wall in self.wall_labels:
+            if wall.property("x") == x and wall.property("y") == y and wall.property("orientation") == orientation:
+                wall.deleteLater()
+                self.wall_labels.remove(wall)
+                break
+
+        # Remove from board data
+        try:
+            self.board_created.remove_wall(player, pos, orientation)
+        except Exception as e:
+            print(f"Error removing wall from board: {e}")
+
+        self.updateWallsLabel()
