@@ -8,6 +8,18 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Quoridor Game")
+
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout()
+        central_widget.setLayout(layout)
+
+        # Title
+        title = QLabel("Quoridor")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("font-size: 48px; font-weight: bold;")
+        layout.addWidget(title)
+        layout.addSpacing(50)  # space between title and buttons
         # Set window size first
         self.resize(950, 820)
 
@@ -26,6 +38,11 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
 
         self.createControlButtons()
+        # Difficulty buttons container
+        button_container = QWidget()
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(20)  # space between buttons
+        button_container.setLayout(button_layout)
 
         self.ai_player = QPushButton("Play vs AI")
         self.human_player = QPushButton("Play vs Human")
@@ -34,37 +51,10 @@ class MainWindow(QMainWindow):
         self.hard_btn = QPushButton("HARD")
         self.difficulty_group = QButtonGroup(self)
         self.difficulty_group.setExclusive(True)  # only one button can be selected at a time
+        # Set same size and style
         for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
-            self.difficulty_group.addButton(btn)
 
-        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
-            btn.setCheckable(True)
-            for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background: qlineargradient(
-                            x1:0, y1:0, x2:0, y2:1,
-                            stop:0 #F48FB1,
-                            stop:1 #E91E63
-                        );
-                        color: white;
-                        padding: 14px 30px;
-                        font-size: 20px;
-                        font-weight: bold;
-                        border-radius: 18px;
-                        border: 3px solid #AD1457;
-                    }
-                    QPushButton:hover {
-                        background: #EC407A;
-                    }
-                    QPushButton:pressed {
-                        background: #C2185B;
-                    }
-                    QPushButton:checked {
-                        background: #880E4F;    /* selected color */
-                        border: 3px solid #FFC107;
-                    }
-                """)
+            button_layout.addWidget(btn, alignment=Qt.AlignCenter)
 
             self.addShadow(btn, blur=20, x=0, y=6)
             btn.hide()  # hide initially
@@ -76,8 +66,12 @@ class MainWindow(QMainWindow):
 
         self.initUI()
 
+
+
         self.ai_player.clicked.connect(self.show_difficulty_options)
         self.human_player.clicked.connect(self.open_human_mode)
+        layout.addWidget(button_container, alignment=Qt.AlignCenter)
+        layout.addStretch()  # pushes everything up if window is taller
 
     def createControlButtons(self):
 
@@ -276,7 +270,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.human_player)
 
         # ===== Difficulty Buttons Layout =====
-        self.difficulty_layout = QHBoxLayout()
+        self.difficulty_layout = QVBoxLayout()
         self.difficulty_layout.setAlignment(Qt.AlignCenter)
 
         for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
@@ -289,11 +283,12 @@ class MainWindow(QMainWindow):
                         stop:1 #E91E63
                     );
                     color: white;
-                    padding: 12px 24px;
-                    font-size: 18px;
+                    padding: 20px;        
+                    font-size: 24px;     
                     font-weight: bold;
-                    border-radius: 18px;
-                    border: 2px solid #AD1457;
+                    border-radius: 22px;   
+                    border: 3px solid #AD1457;
+                    min-width: 280px;      
                 }
                 QPushButton:hover {
                     background: #EC407A;
@@ -363,5 +358,4 @@ class MainWindow(QMainWindow):
         self.board.backToMenu.connect(self.show)
         self.board.show()
         self.close()
-
 
