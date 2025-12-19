@@ -3,96 +3,81 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import sys
 from GUI.board_screen import BoardView
-class DifficultyPage(QWidget):
-    difficultySelected = pyqtSignal(str)  # Emit the chosen difficulty
-
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("Select Difficulty")
-        self.setFixedSize(400, 200)
-
-        # ===== Main layout =====
-        main_layout = QVBoxLayout()
-        main_layout.setAlignment(Qt.AlignCenter)
-        main_layout.setSpacing(20)
-
-        # ===== Title label =====
-        label = QLabel("Choose AI Difficulty")
-        label.setAlignment(Qt.AlignCenter)
-        label.setStyleSheet("""
-            font-size: 24px;
-            font-weight: bold;
-            color: #C2185B;
-        """)
-        main_layout.addWidget(label)
-
-        # ===== Buttons =====
-        self.easy_btn = QPushButton("EASY")
-        self.medium_btn = QPushButton("MEDIUM")
-        self.hard_btn = QPushButton("HARD")
-
-        button_style = """
-        QPushButton {
-            background-color: #C2185B !important;
-            color: white !important;
-            padding: 14px 30px;
-            font-size: 20px;
-            font-weight: bold;
-            border-radius: 18px;
-            border: 3px solid #880E4F !important;
-        }
-        QPushButton:hover {
-            background-color: #EC407A !important;
-        }
-        QPushButton:pressed {
-            background-color: #880E4F !important;
-        }
-        """
-
-        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
-            btn.setStyleSheet(button_style)
-            btn.clicked.connect(lambda checked, b=btn: self.chooseDifficulty(b.text()))
-
-        # ===== Wrap buttons in a frame =====
-        button_frame = QFrame()
-        button_frame.setStyleSheet("background-color: #FFE4F5; border-radius: 20px;")
-        button_layout = QHBoxLayout(button_frame)
-        button_layout.setSpacing(20)
-        button_layout.addWidget(self.easy_btn)
-        button_layout.addWidget(self.medium_btn)
-        button_layout.addWidget(self.hard_btn)
-
-        main_layout.addWidget(button_frame)
-
-        self.setLayout(main_layout)
-
-    def chooseDifficulty(self, difficulty):
-        self.difficultySelected.emit(difficulty)
-        self.close()
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Quoridor Game")
-        self.setGeometry(500, 100, 950, 820)
+        # Set window size first
+        self.resize(950, 820)
 
+        # Get screen geometry
+        screen = QGuiApplication.primaryScreen()
+        screen_geometry = screen.geometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+
+        # Calculate x, y to center the window
+        x = (screen_width - self.width()) // 2
+        y = (screen_height - self.height()) // 2
+
+        # Move the window to the center
+        self.move(x, y)
         self.setWindowFlags(Qt.FramelessWindowHint)
 
         self.createControlButtons()
 
         self.ai_player = QPushButton("Play vs AI")
         self.human_player = QPushButton("Play vs Human")
+        self.easy_btn = QPushButton("EASY")
+        self.medium_btn = QPushButton("MEDIUM")
+        self.hard_btn = QPushButton("HARD")
+        self.difficulty_group = QButtonGroup(self)
+        self.difficulty_group.setExclusive(True)  # only one button can be selected at a time
+        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
+            self.difficulty_group.addButton(btn)
 
-        # Create button group
+        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
+            btn.setCheckable(True)
+            for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: qlineargradient(
+                            x1:0, y1:0, x2:0, y2:1,
+                            stop:0 #F48FB1,
+                            stop:1 #E91E63
+                        );
+                        color: white;
+                        padding: 14px 30px;
+                        font-size: 20px;
+                        font-weight: bold;
+                        border-radius: 18px;
+                        border: 3px solid #AD1457;
+                    }
+                    QPushButton:hover {
+                        background: #EC407A;
+                    }
+                    QPushButton:pressed {
+                        background: #C2185B;
+                    }
+                    QPushButton:checked {
+                        background: #880E4F;    /* selected color */
+                        border: 3px solid #FFC107;
+                    }
+                """)
+
+            self.addShadow(btn, blur=20, x=0, y=6)
+            btn.hide()  # hide initially
+
+        # Connect buttons
+        self.easy_btn.clicked.connect(lambda: self.start_ai("easy"))
+        self.medium_btn.clicked.connect(lambda: self.start_ai("medium"))
+        self.hard_btn.clicked.connect(lambda: self.start_ai("hard"))
 
         self.initUI()
 
+        self.ai_player.clicked.connect(self.show_difficulty_options)
         self.human_player.clicked.connect(self.open_human_mode)
-
-
-
-
 
     def createControlButtons(self):
 
@@ -194,7 +179,6 @@ class MainWindow(QMainWindow):
         self.is_maximized = not self.is_maximized
 
     def initUI(self):
-
         main_widget = QWidget()
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -231,38 +215,36 @@ class MainWindow(QMainWindow):
             border: 4px solid #C2185B;
         }
         """)
-
         self.addShadow(frame, blur=35, x=0, y=12)
 
-
-
+        # ===== Layout for frame =====
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignCenter)
 
-        layout.addWidget(self.ai_player)
-        layout.addWidget(self.human_player)
-
-
-
-        # ===== Title =====
+        # ===== Title & Subtitle =====
         title = QLabel("QUORIDOR")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
-        font-size: 48px;
-        font-weight: 900;
-        letter-spacing: 4px;
-        color: #880E4F;
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: #880E4F;
         """)
 
         subtitle = QLabel("Choose Game Mode")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("""
-        font-size: 22px;
-        color: #C2185B;
-        margin-bottom: 10px;
+            font-size: 38px;
+            color: #C2185B;
+            font-weight:bold;
+            margin-bottom: 10px;
         """)
 
-        # ===== Button Style =====
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addSpacing(15)
+
+        # ===== Main Buttons =====
         button_style = """
         QPushButton {
             background: qlineargradient(
@@ -278,43 +260,65 @@ class MainWindow(QMainWindow):
             min-width: 280px;
             border: 3px solid #AD1457;
         }
-
         QPushButton:hover {
             background: #EC407A;
         }
-
         QPushButton:pressed {
             background: #C2185B;
         }
         """
-
         self.ai_player.setStyleSheet(button_style)
         self.human_player.setStyleSheet(button_style)
-
         self.addShadow(self.ai_player, blur=25, x=0, y=8)
         self.addShadow(self.human_player, blur=25, x=0, y=8)
 
-        # ===== Assemble =====
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addSpacing(15)
         layout.addWidget(self.ai_player)
         layout.addWidget(self.human_player)
 
-        frame.setLayout(layout)
+        # ===== Difficulty Buttons Layout =====
+        self.difficulty_layout = QHBoxLayout()
+        self.difficulty_layout.setAlignment(Qt.AlignCenter)
 
-        # إضافة الإطار إلى المحتوى
+        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
+            btn.setCheckable(True)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:0, y2:1,
+                        stop:0 #F48FB1,
+                        stop:1 #E91E63
+                    );
+                    color: white;
+                    padding: 12px 24px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    border-radius: 18px;
+                    border: 2px solid #AD1457;
+                }
+                QPushButton:hover {
+                    background: #EC407A;
+                }
+                QPushButton:pressed {
+                    background: #C2185B;
+                }
+                QPushButton:checked {
+                    background: #880E4F;
+                    border: 3px solid #FFC107;
+                }
+            """)
+            self.addShadow(btn, blur=20, x=0, y=6)
+            btn.hide()  # hide initially
+            self.difficulty_layout.addWidget(btn)
+
+        layout.addLayout(self.difficulty_layout)
+
+        # ===== Set layout to frame and main content =====
+        frame.setLayout(layout)
         content_layout.addWidget(frame)
         content_widget.setLayout(content_layout)
-
-        # إضافة المحتوى إلى التخطيط الرئيسي
         main_layout.addWidget(content_widget)
         main_widget.setLayout(main_layout)
-
         self.setCentralWidget(main_widget)
-
-        self.ai_player.clicked.connect(self.open_ai_mode)
-        self.human_player.clicked.connect(self.open_human_mode)
 
     # ===== Utilities =====
     def addShadow(self, widget, blur=20, x=0, y=6):
@@ -337,15 +341,20 @@ class MainWindow(QMainWindow):
 
     # ===== Navigation =====
     def open_ai_mode(self):
-        self.diff_page = DifficultyPage()
-        self.diff_page.difficultySelected.connect(self.start_ai)
-        self.diff_page.show()
+        # We no longer use combo_diff here
+        self.show_difficulty_options()
 
     def open_human_mode(self):
         self.board = BoardView("HUMAN")
         self.board.backToMenu.connect(self.show)
         self.board.show()
         self.close()
+
+    def show_difficulty_options(self):
+        self.ai_player.hide()
+        self.human_player.hide()
+        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
+            btn.show()
 
     def start_ai(self, difficulty):
         from Ai.ai_player import AIPlayer
@@ -354,6 +363,5 @@ class MainWindow(QMainWindow):
         self.board.backToMenu.connect(self.show)
         self.board.show()
         self.close()
-
 
 

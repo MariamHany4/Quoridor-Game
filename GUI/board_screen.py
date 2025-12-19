@@ -5,8 +5,6 @@ from Core.board import Board
 
 import sys
 import os
-from copy import deepcopy
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Ai.ai_player import AIPlayer
@@ -29,13 +27,25 @@ class BoardView(QWidget):
 
 
         self.setWindowTitle("Quoridor - Game Board")
-        self.setGeometry(500, 100, 980, 900)
+        # Set window size
+        self.resize(980, 900)
+
+        # Get screen geometry
+        screen = QGuiApplication.primaryScreen()
+        screen_geometry = screen.geometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+
+        # Calculate top-left corner for centering
+        x = (screen_width - self.width()) // 2
+        y = (screen_height - self.height()) // 2
+
+        # Move the window to the center
+        self.move(x, y)
 
         self.cells = {}
         self.wall_labels = []
         self.board_created = Board(self.mode == 'AI')
-        self.undo_stack = []
-        self.redo_stack = []
 
         # Make window frameless
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -49,15 +59,6 @@ class BoardView(QWidget):
         if self.mode == "AI":
             from Ai.ai_player import AIPlayer
             self.ai_player_obj = AIPlayer("P2", self.difficulty)
-
-    def saveState(self):
-        self.undo_stack.append({
-            "pawns": deepcopy(self.board_created.pawns),
-            "walls": deepcopy(self.board_created.walls),
-            "walls_left": deepcopy(self.board_created.walls_left),
-            "current_player": self.board_created.current_player
-        })
-        self.redo_stack.clear()
 
     def initUI(self):
         """
@@ -316,17 +317,6 @@ class BoardView(QWidget):
 
         side_panel.addWidget(reset_btn)
         side_panel.addWidget(back_btn)
-        undo_btn = QPushButton("Undo")
-        redo_btn = QPushButton("Redo")
-
-        undo_btn.setStyleSheet(button_style)
-        redo_btn.setStyleSheet(button_style)
-
-        undo_btn.clicked.connect(self.undo)
-        redo_btn.clicked.connect(self.redo)
-
-        side_panel.addWidget(undo_btn)
-        side_panel.addWidget(redo_btn)
 
         # Assemble Main Layout
         main_layout.addLayout(board_container, stretch=5)
@@ -463,6 +453,47 @@ class BoardView(QWidget):
                 self.move(event.globalPos() - self.drag_position)
                 event.accept()
 
+    def showInvalidAction(self, message):
+        """
+        Show an invalid move/wall message in a pink-themed popup
+        """
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Invalid Action")
+        msg.setText(message)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setStandardButtons(QMessageBox.Ok)
+
+        msg.setStyleSheet("""
+        QMessageBox {
+            background: qradialgradient(
+                cx:0.5, cy:0.5, radius:1,
+                stop:0 #FFE4F5,
+                stop:1 #FFB3D9
+            );
+        }
+        QLabel {
+            color: #880E4F;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        QPushButton {
+            background: qlineargradient(
+                x1:0, y1:0, x2:0, y2:1,
+                stop:0 #F48FB1,
+                stop:1 #E91E63
+            );
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: #EC407A;
+        }
+        """)
+        msg.exec_()
+
     def handleCellClick(self):
         """
         Executes when a player clicks on a cell.
@@ -482,11 +513,9 @@ class BoardView(QWidget):
         if self.action_mode == "move":
             old_r, old_c = self.board_created.pawns[current_player]
             color = "#AD1457" if current_player == "P1" else "#F48FB1"
-            self.saveState()
+
             moved = self.board_created.move_pawn(current_player, (r, c))
             if moved:
-
-
                 # Update board UI
                 self.clearCell(old_r, old_c)
                 self.placePawn(r, c, color)
@@ -500,29 +529,24 @@ class BoardView(QWidget):
                     self.showSimpleWinner(winner)
                     return  # Stop further actions if game ended
 
-                print(f"{current_player} moved to ({r}, {c})")
-
                 # ===== Trigger AI if next turn =====
                 if self.mode == "AI" and self.board_created.current_player == "P2":
                     QTimer.singleShot(300, self.ai_move)
             else:
-                 self.showInvalidMove("Cannot move to this cell!")
+                self.showInvalidAction("Invalid move! Please choose a valid cell.")
 
         # ===== WALL MODE =====
         elif self.action_mode == "wall":
             placing_player = current_player
-            self.saveState()
+
             placed = self.board_created.place_wall(
                 current_player,
                 r,
                 c,
                 self.wall_orientation
             )
+
             if placed:
-
-
-
-                print(f"{placing_player} placed wall at ({r}, {c}) - {self.wall_orientation}")
                 self.drawWall(r, c, self.wall_orientation, placing_player)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
                 self.updateWallsLabel()
@@ -531,9 +555,7 @@ class BoardView(QWidget):
                 if self.mode == "AI" and self.board_created.current_player == "P2":
                     QTimer.singleShot(300, self.ai_move)
             else:
-                self.showInvalidMove("Cannot place wall here!")
-        # After human move in "move" mode
-
+                self.showInvalidAction("Cannot place wall here! Choose a valid position.")
 
     def drawWall(self, x, y, orientation, player):
         """
@@ -703,9 +725,6 @@ class BoardView(QWidget):
         """
         Restart game
         """
-        self.undo_stack.clear()
-        self.redo_stack.clear()
-
         # Clear all cells
         for r in range(self.GRID_SIZE):
             for c in range(self.GRID_SIZE):
@@ -917,13 +936,10 @@ class BoardView(QWidget):
         self.executeAction(action)
 
     def executeAction(self, action):
-
-
         current_player = self.board_created.current_player
         color = "#F48FB1"  # AI color (P2)
 
         if action["type"] == "move":
-            self.saveState()
             old_r, old_c = self.board_created.pawns[current_player]
             moved = self.board_created.move_pawn(current_player, action["to"])
             if moved:
@@ -937,7 +953,6 @@ class BoardView(QWidget):
                     self.showSimpleWinner(winner)
 
         elif action["type"] == "wall":
-            self.saveState()
             placed = self.board_created.place_wall(
                 current_player, action["x"], action["y"], action["orientation"]
             )
@@ -945,99 +960,3 @@ class BoardView(QWidget):
                 self.drawWall(action["x"], action["y"], action["orientation"], current_player)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
                 self.updateWallsLabel()
-
-    def restoreState(self, state):
-        self.board_created.pawns = deepcopy(state["pawns"])
-        self.board_created.walls = deepcopy(state["walls"])
-        self.board_created.walls_left = deepcopy(state["walls_left"])
-        self.board_created.current_player = state["current_player"]
-
-        # Clear board
-        for r in range(self.GRID_SIZE):
-            for c in range(self.GRID_SIZE):
-                self.clearCell(r, c)
-
-        # Clear walls
-        # ---- SAFE WALL CLEANUP ----
-        for wall in list(self.wall_labels):
-            if wall is not None:
-                wall.hide()
-                wall.setParent(None)
-                wall.deleteLater()
-
-        self.wall_labels = []
-        # ---- REDRAW WALLS ----
-        for wall_data in self.board_created.walls:
-            x, y, orient, player = wall_data
-            self.drawWall(x, y, orient, player)
-
-        # Place pawns
-        for player, (r, c) in self.board_created.pawns.items():
-            color = "#AD1457" if player == "P1" else "#F48FB1"
-            self.placePawn(r, c, color)
-
-
-
-        self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
-        self.updateWallsLabel()
-
-    def undo(self):
-        if not self.undo_stack:
-            return
-
-        self.redo_stack.append({
-            "pawns": deepcopy(self.board_created.pawns),
-            "walls": deepcopy(self.board_created.walls),
-            "walls_left": deepcopy(self.board_created.walls_left),
-            "current_player": self.board_created.current_player
-        })
-
-        state = self.undo_stack.pop()
-        self.restoreState(state)
-
-    def redo(self):
-        if not self.redo_stack:
-            return
-
-        self.undo_stack.append({
-            "pawns": deepcopy(self.board_created.pawns),
-            "walls": deepcopy(self.board_created.walls),
-            "walls_left": deepcopy(self.board_created.walls_left),
-            "current_player": self.board_created.current_player
-        })
-
-        state = self.redo_stack.pop()
-        self.restoreState(state)
-
-    def showInvalidMove(self, message="Invalid Move!"):
-        """
-        Show popup for invalid move or wall placement.
-        """
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Invalid Action")
-        msg.setText(message)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setStandardButtons(QMessageBox.Ok)
-
-        msg.setStyleSheet("""
-        QMessageBox {
-            background: #FFE4F5;
-        }
-        QLabel {
-            color: #880E4F;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        QPushButton {
-            background: #C2185B;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background: #EC407A;
-        }
-        """)
-        msg.exec_()
