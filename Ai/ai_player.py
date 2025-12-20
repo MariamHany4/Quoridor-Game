@@ -29,14 +29,23 @@ class AIPlayer:
         else:
             self.depth = 1  # default easy
 
-
     def choose_action(self, board):
         actions = self._generate_all_actions(board)
 
+        # Easy AI: only consider pawn moves
         if self.difficulty == "easy":
-            return self._choose_greedy(board, actions)
+            actions = [a for a in actions if a["type"] == "move"]
 
-        # Medium and Hard: minimax with alpha-beta
+        # Set depth based on difficulty
+        if self.difficulty == "easy":
+            depth = 1
+        elif self.difficulty == "medium":
+            depth = 2
+        elif self.difficulty == "hard":
+            depth = 3
+        else:
+            depth = 1  # default easy
+
         best_score = float("-inf") if self.player == "P1" else float("inf")
         best_action = None
         alpha = float('-inf')
@@ -46,8 +55,8 @@ class AIPlayer:
             simulated_board = self._simulate_action(board, action)
             score = minimax.minimax_alpha_beta_quoridor(
                 simulated_board,
-                depth=self.depth - 1,
-                is_maximizing=(self.player == "P2"),  # opponent's turn
+                depth=depth - 1,
+                is_maximizing=(self.player == "P2"),
                 alpha=alpha,
                 beta=beta
             )
@@ -65,7 +74,7 @@ class AIPlayer:
 
         return best_action
 
-    # greedy heuristic for easy 
+    # greedy heuristic for easy
     def _choose_greedy(self, board, actions):
         best_score = float("-inf")
         best_actions = []
