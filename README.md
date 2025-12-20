@@ -84,7 +84,7 @@ All screenshots are stored in the **`assets/`** folder.
 ---
 
 ### ⚙️ AI Difficulty Selection
-<img src="assets/ai_diff.png" width="500"/>
+<img src="assets/ai_difficulty.png" width="500"/>
 
 
 ---
