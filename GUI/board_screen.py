@@ -2,40 +2,51 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from Core.board import Board
-
+from Core.game_state import GameState
 import sys
 import os
-from copy import deepcopy
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Ai.ai_player import AIPlayer
 
+
 class BoardView(QWidget):
     # Signal to go back to main menu
     backToMenu = pyqtSignal()
-
     GRID_SIZE = 9
 
     def __init__(self, mode, difficulty="easy"):
-        """
-         Constructor - executes when creating an object from the class
-        """
-
         super().__init__()
         self.mode = mode
         self.difficulty = difficulty
 
-
+        # Initialize stacks
+        self.undo_stack = []  # Stack of GameState objects
+        self.redo_stack = []  # Stack of GameState objects
+        self.ai_processing = False  # Prevent recursive AI calls
+        self.refresh_in_progress = False  # Prevent recursive refresh
 
         self.setWindowTitle("Quoridor - Game Board")
-        self.setGeometry(500, 100, 980, 900)
+        # Set window size
+        self.resize(980, 900)
+
+        # Get screen geometry
+        screen = QGuiApplication.primaryScreen()
+        screen_geometry = screen.geometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+
+        # Calculate top-left corner for centering
+        x = (screen_width - self.width()) // 2
+        y = (screen_height - self.height()) // 2
+
+        # Move the window to the center
+        self.move(x, y)
 
         self.cells = {}
         self.wall_labels = []
         self.board_created = Board(self.mode == 'AI')
-        self.undo_stack = []
-        self.redo_stack = []
 
         # Make window frameless
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -44,20 +55,10 @@ class BoardView(QWidget):
         self.action_mode = "move"
         self.wall_orientation = "H"
 
-
         self.initUI()
         if self.mode == "AI":
             from Ai.ai_player import AIPlayer
             self.ai_player_obj = AIPlayer("P2", self.difficulty)
-
-    def saveState(self):
-        self.undo_stack.append({
-            "pawns": deepcopy(self.board_created.pawns),
-            "walls": deepcopy(self.board_created.walls),
-            "walls_left": deepcopy(self.board_created.walls_left),
-            "current_player": self.board_created.current_player
-        })
-        self.redo_stack.clear()
 
     def initUI(self):
         """
@@ -304,18 +305,7 @@ class BoardView(QWidget):
             background: #C2185B;
         }
         """
-
-        reset_btn = QPushButton("Restart Game")
-        reset_btn.setStyleSheet(button_style)
-        reset_btn.clicked.connect(self.resetGame)
-
-        back_btn = QPushButton("Back to Menu")
-        back_btn.setStyleSheet(button_style)
-
-        back_btn.clicked.connect(self.goBackToMenu)
-
-        side_panel.addWidget(reset_btn)
-        side_panel.addWidget(back_btn)
+        # ===== Undo / Redo Buttons =====
         undo_btn = QPushButton("Undo")
         redo_btn = QPushButton("Redo")
 
@@ -328,6 +318,18 @@ class BoardView(QWidget):
         side_panel.addWidget(undo_btn)
         side_panel.addWidget(redo_btn)
 
+        reset_btn = QPushButton("Restart Game")
+        reset_btn.setStyleSheet(button_style)
+        reset_btn.clicked.connect(self.resetGame)
+
+        back_btn = QPushButton("Back to Menu")
+        back_btn.setStyleSheet(button_style)
+
+        back_btn.clicked.connect(self.goBackToMenu)
+
+        side_panel.addWidget(reset_btn)
+        side_panel.addWidget(back_btn)
+
         # Assemble Main Layout
         main_layout.addLayout(board_container, stretch=5)
         main_layout.addLayout(side_panel, stretch=2)
@@ -339,10 +341,31 @@ class BoardView(QWidget):
         main_layout_wrapper.addWidget(content_widget)
         self.setLayout(main_layout_wrapper)
 
+    def saveState(self):
+        """Save current game state to undo stack"""
+        try:
+            # Create a deep copy of current state
+            state = GameState(self.board_created)
+            self.undo_stack.append(state)
+
+            # Clear redo stack when new move is made
+            self.redo_stack.clear()
+
+            # Debug info
+            print(f"\n=== SAVED STATE ===")
+            print(f"Pawns: {self.board_created.pawns}")
+            print(f"Walls: {self.board_created.walls}")
+            print(f"Current player: {self.board_created.current_player}")
+            print(f"Undo stack size: {len(self.undo_stack)}")
+            print(f"=== END SAVE ===\n")
+
+        except Exception as e:
+            print(f"Error saving state: {e}")
+
     def createTitleBar(self):
         """
-                    Create custom title bar like start screen
-                    """
+        Create custom title bar like start screen
+        """
         self.title_bar = QWidget()
         self.title_bar.setFixedHeight(40)
         self.title_bar.setStyleSheet("""
@@ -409,65 +432,110 @@ class BoardView(QWidget):
         self.title_bar.setLayout(title_layout)
 
     def createControlButton(self, text, color1, color2):
-            """
-            Create title bar button
-            """
-            btn = QPushButton(text)
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: qlineargradient(
-                        x1:0, y1:0, x2:0, y2:1,
-                        stop:0 {color1},
-                        stop:1 {color2}
-                    );
-                    color: white;
-                    border-radius: 14px;
-                    font-size: 16px;
-                    font-weight: bold;
-                    border: none;
-                }}
-                QPushButton:hover {{
-                    background: #EC407A;
-                }}
-                QPushButton:pressed {{
-                    background: #C2185B;
-                }}
-            """)
-            return btn
+        """
+        Create title bar button
+        """
+        btn = QPushButton(text)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {color1},
+                    stop:1 {color2}
+                );
+                color: white;
+                border-radius: 14px;
+                font-size: 16px;
+                font-weight: bold;
+                border: none;
+            }}
+            QPushButton:hover {{
+                background: #EC407A;
+            }}
+            QPushButton:pressed {{
+                background: #C2185B;
+            }}
+        """)
+        return btn
 
     def toggleMaximize(self):
-            """
-            Toggle maximize/normal
-            """
-            if self.is_maximized:
-                self.showNormal()
-                self.maximize_btn.setText("🗖")
-            else:
-                self.showMaximized()
-                self.maximize_btn.setText("🗗")
-            self.is_maximized = not self.is_maximized
+        """
+        Toggle maximize/normal
+        """
+        if self.is_maximized:
+            self.showNormal()
+            self.maximize_btn.setText("🗖")
+        else:
+            self.showMaximized()
+            self.maximize_btn.setText("🗗")
+        self.is_maximized = not self.is_maximized
 
     def mousePressEvent(self, event):
-            """
-            Enable dragging window
-            """
-            if event.button() == Qt.LeftButton:
-                self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
-                event.accept()
+        """
+        Enable dragging window
+        """
+        if event.button() == Qt.LeftButton:
+            self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
+            event.accept()
 
     def mouseMoveEvent(self, event):
-            """
-            Move window when dragging
-            """
-            if event.buttons() == Qt.LeftButton and hasattr(self, 'drag_position'):
-                self.move(event.globalPos() - self.drag_position)
-                event.accept()
+        """
+        Move window when dragging
+        """
+        if event.buttons() == Qt.LeftButton and hasattr(self, 'drag_position'):
+            self.move(event.globalPos() - self.drag_position)
+            event.accept()
+
+    def showInvalidAction(self, message):
+        """
+        Show an invalid move/wall message in a pink-themed popup
+        """
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Invalid Action")
+        msg.setText(message)
+        msg.setIcon(QMessageBox.Warning)
+        msg.setStandardButtons(QMessageBox.Ok)
+
+        msg.setStyleSheet("""
+        QMessageBox {
+            background: qradialgradient(
+                cx:0.5, cy:0.5, radius:1,
+                stop:0 #FFE4F5,
+                stop:1 #FFB3D9
+            );
+        }
+        QLabel {
+            color: #880E4F;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        QPushButton {
+            background: qlineargradient(
+                x1:0, y1:0, x2:0, y2:1,
+                stop:0 #F48FB1,
+                stop:1 #E91E63
+            );
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: #EC407A;
+        }
+        """)
+        msg.exec_()
 
     def handleCellClick(self):
         """
         Executes when a player clicks on a cell.
         Handles both human and AI turns automatically in AI mode.
         """
+        # Prevent multiple clicks while processing
+        if self.ai_processing:
+            return
+
         btn = self.sender()
         r = btn.property("row")
         c = btn.property("col")
@@ -478,15 +546,16 @@ class BoardView(QWidget):
         if self.mode == "AI" and current_player == "P2":
             return
 
+        # Save state BEFORE making the move
+        self.saveState()
+
         # ===== MOVE MODE =====
         if self.action_mode == "move":
             old_r, old_c = self.board_created.pawns[current_player]
             color = "#AD1457" if current_player == "P1" else "#F48FB1"
-            self.saveState()
+
             moved = self.board_created.move_pawn(current_player, (r, c))
             if moved:
-
-
                 # Update board UI
                 self.clearCell(old_r, old_c)
                 self.placePawn(r, c, color)
@@ -500,45 +569,44 @@ class BoardView(QWidget):
                     self.showSimpleWinner(winner)
                     return  # Stop further actions if game ended
 
-                print(f"{current_player} moved to ({r}, {c})")
-
                 # ===== Trigger AI if next turn =====
                 if self.mode == "AI" and self.board_created.current_player == "P2":
+                    # Use singleShot to prevent recursion
                     QTimer.singleShot(300, self.ai_move)
             else:
-                 self.showInvalidMove("Cannot move to this cell!")
+                self.showInvalidAction("Invalid move! Please choose a valid cell.")
 
         # ===== WALL MODE =====
         elif self.action_mode == "wall":
             placing_player = current_player
-            self.saveState()
             placed = self.board_created.place_wall(
                 current_player,
                 r,
                 c,
                 self.wall_orientation
             )
+
             if placed:
-
-
-
-                print(f"{placing_player} placed wall at ({r}, {c}) - {self.wall_orientation}")
                 self.drawWall(r, c, self.wall_orientation, placing_player)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
                 self.updateWallsLabel()
 
                 # ===== Trigger AI if next turn =====
                 if self.mode == "AI" and self.board_created.current_player == "P2":
+                    # Use singleShot to prevent recursion
                     QTimer.singleShot(300, self.ai_move)
             else:
-                self.showInvalidMove("Cannot place wall here!")
-        # After human move in "move" mode
-
+                self.showInvalidAction("Cannot place wall here! Choose a valid position.")
 
     def drawWall(self, x, y, orientation, player):
         """
         Draw beautiful wall with player colors - CORRECT PLAYER
         """
+        # Convert coordinates if needed (sometimes walls use different coordinate systems)
+        # Ensure x and y are within bounds
+        if x < 0 or x >= self.GRID_SIZE or y < 0 or y >= self.GRID_SIZE:
+            print(f"Invalid wall coordinates: ({x}, {y})")
+            return
         # Use the player parameter directly (no need to reverse)
         wall_player = player
 
@@ -639,7 +707,6 @@ class BoardView(QWidget):
             f"P2 Walls: {self.board_created.walls_left['P2']}"
         )
 
-
     def clearCell(self, row, col):
         """
         Clear cell content
@@ -705,6 +772,7 @@ class BoardView(QWidget):
         """
         self.undo_stack.clear()
         self.redo_stack.clear()
+        self.ai_processing = False
 
         # Clear all cells
         for r in range(self.GRID_SIZE):
@@ -734,8 +802,6 @@ class BoardView(QWidget):
         # Update labels
         self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
         self.updateWallsLabel()
-
-   
 
     def setMoveMode(self):
         """
@@ -903,28 +969,41 @@ class BoardView(QWidget):
         """
         Go back to main menu
         """
-        self.backToMenu.emit() 
+        self.backToMenu.emit()
         self.close()  # Close board window
 
     def ai_move(self):
+        """Execute AI move with recursion prevention"""
         if self.mode != "AI" or self.board_created.current_player != "P2":
             return
 
-        action = self.ai_player_obj.choose_action(self.board_created)
-        if action is None:
+        # Prevent recursive calls
+        if self.ai_processing:
             return
 
-        self.executeAction(action)
+        try:
+            self.ai_processing = True
+
+            # Save state before AI move
+            self.saveState()
+
+            action = self.ai_player_obj.choose_action(self.board_created)
+            if action is None:
+                return
+
+            self.executeAction(action)
+
+        finally:
+            self.ai_processing = False
 
     def executeAction(self, action):
-
-
+        """Execute an action (move or wall)"""
         current_player = self.board_created.current_player
-        color = "#F48FB1"  # AI color (P2)
+        color = "#F48FB1"  # AI color
 
         if action["type"] == "move":
-            self.saveState()
             old_r, old_c = self.board_created.pawns[current_player]
+
             moved = self.board_created.move_pawn(current_player, action["to"])
             if moved:
                 self.clearCell(old_r, old_c)
@@ -937,7 +1016,6 @@ class BoardView(QWidget):
                     self.showSimpleWinner(winner)
 
         elif action["type"] == "wall":
-            self.saveState()
             placed = self.board_created.place_wall(
                 current_player, action["x"], action["y"], action["orientation"]
             )
@@ -946,98 +1024,148 @@ class BoardView(QWidget):
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
                 self.updateWallsLabel()
 
-    def restoreState(self, state):
-        self.board_created.pawns = deepcopy(state["pawns"])
-        self.board_created.walls = deepcopy(state["walls"])
-        self.board_created.walls_left = deepcopy(state["walls_left"])
-        self.board_created.current_player = state["current_player"]
-
-        # Clear board
-        for r in range(self.GRID_SIZE):
-            for c in range(self.GRID_SIZE):
-                self.clearCell(r, c)
-
-        # Clear walls
-        # ---- SAFE WALL CLEANUP ----
-        for wall in list(self.wall_labels):
-            if wall is not None:
-                wall.hide()
-                wall.setParent(None)
-                wall.deleteLater()
-
-        self.wall_labels = []
-        # ---- REDRAW WALLS ----
-        for wall_data in self.board_created.walls:
-            x, y, orient, player = wall_data
-            self.drawWall(x, y, orient, player)
-
-        # Place pawns
-        for player, (r, c) in self.board_created.pawns.items():
-            color = "#AD1457" if player == "P1" else "#F48FB1"
-            self.placePawn(r, c, color)
-
-
-
-        self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
-        self.updateWallsLabel()
-
     def undo(self):
+        """Undo the last move(s)"""
         if not self.undo_stack:
+            print("Nothing to undo")
             return
 
-        self.redo_stack.append({
-            "pawns": deepcopy(self.board_created.pawns),
-            "walls": deepcopy(self.board_created.walls),
-            "walls_left": deepcopy(self.board_created.walls_left),
-            "current_player": self.board_created.current_player
-        })
+        # Prevent recursion during UI update
+        if self.refresh_in_progress:
+            return
 
-        state = self.undo_stack.pop()
-        self.restoreState(state)
+        try:
+            self.refresh_in_progress = True
+
+            print(f"Before undo - Current state:")
+            print(f"  Pawns: {self.board_created.pawns}")
+            print(f"  Walls: {self.board_created.walls}")
+            print(f"  Current player: {self.board_created.current_player}")
+
+            # Save current state to redo stack
+            self.redo_stack.append(GameState(self.board_created))
+
+            # Restore previous state
+            prev_state = self.undo_stack.pop()
+            prev_state.restore(self.board_created)
+
+            print(f"After undo - Restored state:")
+            print(f"  Pawns: {self.board_created.pawns}")
+            print(f"  Walls: {self.board_created.walls}")
+            print(f"  Current player: {self.board_created.current_player}")
+
+            # Refresh UI
+            self.refreshUI()
+
+            print(f"Undo performed. Undo stack: {len(self.undo_stack)}, Redo stack: {len(self.redo_stack)}")
+
+        finally:
+            self.refresh_in_progress = False
 
     def redo(self):
+        """Redo the last undone move(s)"""
         if not self.redo_stack:
+            print("Nothing to redo")
             return
 
-        self.undo_stack.append({
-            "pawns": deepcopy(self.board_created.pawns),
-            "walls": deepcopy(self.board_created.walls),
-            "walls_left": deepcopy(self.board_created.walls_left),
-            "current_player": self.board_created.current_player
-        })
+        # Prevent recursion during UI update
+        if self.refresh_in_progress:
+            return
 
-        state = self.redo_stack.pop()
-        self.restoreState(state)
+        try:
+            self.refresh_in_progress = True
 
-    def showInvalidMove(self, message="Invalid Move!"):
-        """
-        Show popup for invalid move or wall placement.
-        """
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Invalid Action")
-        msg.setText(message)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setStandardButtons(QMessageBox.Ok)
+            print(f"Before redo - Current state:")
+            print(f"  Pawns: {self.board_created.pawns}")
+            print(f"  Walls: {self.board_created.walls}")
+            print(f"  Current player: {self.board_created.current_player}")
 
-        msg.setStyleSheet("""
-        QMessageBox {
-            background: #FFE4F5;
-        }
-        QLabel {
-            color: #880E4F;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        QPushButton {
-            background: #C2185B;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background: #EC407A;
-        }
-        """)
-        msg.exec_()
+            # Save current state to undo stack
+            self.undo_stack.append(GameState(self.board_created))
+
+            # Restore next state
+            next_state = self.redo_stack.pop()
+            next_state.restore(self.board_created)
+
+            print(f"After redo - Restored state:")
+            print(f"  Pawns: {self.board_created.pawns}")
+            print(f"  Walls: {self.board_created.walls}")
+            print(f"  Current player: {self.board_created.current_player}")
+
+            # Refresh UI
+            self.refreshUI()
+
+            print(f"Redo performed. Undo stack: {len(self.undo_stack)}, Redo stack: {len(self.redo_stack)}")
+
+        finally:
+            self.refresh_in_progress = False
+
+    def refreshUI(self):
+        """Refresh the UI based on current board state"""
+        try:
+            # Clear all wall labels
+            for wall in self.wall_labels:
+                if wall and wall.isVisible():
+                    wall.hide()
+                    wall.setParent(None)
+                    wall.deleteLater()
+            self.wall_labels.clear()
+
+            # Clear all cells
+            for (r, c), btn in self.cells.items():
+                self.clearCell(r, c)
+
+            # Place pawns
+            for player, (r, c) in self.board_created.pawns.items():
+                color = "#AD1457" if player == "P1" else "#F48FB1"
+                self.placePawn(r, c, color)
+
+            # Draw walls
+            if hasattr(self.board_created, 'walls'):
+                for wall_data in self.board_created.walls:
+                    if wall_data:
+                        # Handle tuple format
+                        if isinstance(wall_data, tuple):
+                            if len(wall_data) >= 3:
+                                x, y, orientation = wall_data[0], wall_data[1], wall_data[2]
+                                player = "P1"
+                                if len(wall_data) >= 4:
+                                    player = wall_data[3]
+                                self.drawWall(x, y, orientation, player)
+                        # Handle dictionary format
+                        elif isinstance(wall_data, dict):
+                            self.drawWall(
+                                wall_data.get('x', 0),
+                                wall_data.get('y', 0),
+                                wall_data.get('orientation', 'H'),
+                                wall_data.get('player', 'P1')
+                            )
+
+            # Update labels
+            self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
+            self.updateWallsLabel()
+
+            # Force update
+            self.update()
+            QApplication.processEvents()
+
+        except Exception as e:
+            print(f"Error in refreshUI: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def debugBoardState(self):
+        """Debug method to print current board state"""
+        print("\n=== DEBUG BOARD STATE ===")
+        print(f"Pawns: P1={self.board_created.pawns.get('P1')}, P2={self.board_created.pawns.get('P2')}")
+        print(f"Current player: {self.board_created.current_player}")
+        print(f"Walls left: P1={self.board_created.walls_left.get('P1')}, P2={self.board_created.walls_left.get('P2')}")
+        print(
+            f"Total walls in list: {len(self.board_created.walls) if hasattr(self.board_created, 'walls') else 'No walls attr'}")
+
+        if hasattr(self.board_created, 'walls'):
+            for i, wall in enumerate(self.board_created.walls):
+                print(f"  Wall {i}: {wall}")
+
+        print("=== END DEBUG ===\n")
+

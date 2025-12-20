@@ -23,9 +23,9 @@ class AIPlayer:
         if difficulty == "easy":
             self.depth = 1
         elif difficulty == "medium":
-            self.depth = 3
+            self.depth = 2
         elif difficulty == "hard":
-            self.depth = 4
+            self.depth = 3
         else:
             self.depth = 1  # default easy
 

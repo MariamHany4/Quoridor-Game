@@ -1,107 +1,103 @@
 # 🎲 Quoridor Game
+
 ---
 
 ## 🌟 Overview
 
-**Quoridor Game** is a fully-featured implementation of the **2-player Quoridor board game**.  
-It includes a **graphical interface**, **AI opponents**, and **complete rule enforcement**.  
+**Quoridor Game** is a complete implementation of the classic **2-player Quoridor board game**, featuring a **graphical user interface built with PyQt**, strategic **AI opponents**, and **full rule enforcement** according to the official game rules.
 
-Players can move pawns, place walls strategically, and challenge a computer opponent with multiple difficulty levels.  
+Players move pawns, place walls strategically, and compete either against another human player or an AI opponent with multiple difficulty levels.
 
 ---
 
 ## 🏁 Game Rules Summary
 
 | Feature | Description |
-|---------|-------------|
-| Board | 9×9 squares |
+|-------|-------------|
+| Board | 9×9 grid |
 | Players | 2 |
-| Pawns & Walls | Each player starts with a pawn and 10 walls | 
+| Pawns & Walls | Each player starts with 1 pawn and 10 walls |
 | Objective | Reach the opposite side of the board first |
-| Pawn Movement | One square orthogonally; jump over adjacent opponent pawns if possible |
+| Pawn Movement | One square orthogonally; jump over adjacent opponent pawn if possible |
 | Wall Placement | Two squares long; cannot overlap, cross, or fully block a player |
 
 ---
 
 ## 🚀 Features
 
-**Core Features**  
-- Full 2-player game with official rules 📜  
-- GUI showing board, pawns, walls, turn indicator, wall counts 🖼️  
-- Valid move highlighting & illegal move prevention ✅  
-- Pathfinding ensures walls never block a player 🔀  
+### 🎮 Core Features
+- Full 2-player Quoridor implementation with official rules 📜  
+- Graphical board display with pawns, walls, turn indicator, and wall count 🖼️  
+- Valid move highlighting and illegal move prevention ✅  
+- Pathfinding ensures walls never block all paths 🔀  
 - Human vs Human gameplay 🤝  
-- Human vs AI gameplay with strategic moves 🤖  
-
-**User Interface (UI)**  
-- Click-based controls for moving pawns and placing walls 🖱️  
-- Turn indicator & wall count display ⏱️  
-- Game state messages for invalid moves and winner announcement 💬  
-- Reset game functionality 🔄  
-
-**Bonus Features (Optional)**  
-- Undo/Redo moves ↩️  
-- Game state saving/loading 💾  
-- Custom board sizes / 4-player mode 🛠️  
-
-
-## 🧠 AI Opponent
-
-| Difficulty | Behavior |
-|------------|----------|
-| Easy | Random valid moves, low lookahead |
-| Medium | Evaluates shortest paths + basic wall strategy |
-| Hard | Full Minimax with Alpha-Beta pruning + path heuristics |
+- Human vs AI gameplay with multiple difficulty levels 🤖  
 
 ---
+
+### 🖥️ User Interface (PyQt)
+- Click-based interaction for pawn movement and wall placement 🖱️  
+- Turn indicator and remaining wall counters ⏱️  
+- Game state messages (invalid moves, winner announcement) 💬  
+- Game reset functionality 🔄  
+
+---
+
+### 🧠 AI Opponent
+
+| Difficulty | Description |
+|-----------|-------------|
+| Easy | Greedy heuristic-based moves with minimal lookahead |
+| Medium | Path-based evaluation with limited Minimax depth |
+| Hard | Minimax algorithm with Alpha–Beta pruning and advanced heuristics |
+
+---
+
 ## 🎮 Controls
 
-| Action     | How to perform                       |
-|------------|--------------------------------------|
-| Move Pawn  | Click your pawn → Click highlighted square |
-| Place Wall | Enable wall mode → Click desired edge |
-| Undo/Redo  | Ctrl+Z / Ctrl+Y (if implemented)    |
-| Reset Game | Click "Reset" button                 |
----
+| Action | How to Perform |
+|------|---------------|
+| Move Pawn | Click your pawn → Click a highlighted square |
+| Place Wall | Enable wall placement mode → Click desired position |
+| Reset Game | Click the **Reset** button |
+| Undo / Redo | Ctrl + Z / Ctrl + Y (if implemented) |
+
 ---
 
 ## 🖼️ Game Screenshots
 
-<details>
-<summary><b>👉 Click to view game screens</b></summary>
-
-<br>
+All screenshots are stored in the **`assets/`** folder.
 
 ### 🏠 Main Screen
-![Main Screen](assets/main_screen.png)
+<img src="assets/main_screen.png" width="500"/>
 
 ---
 
 ### 👥 Human vs Human Mode
-![Human Mode](assets/human_mode.png)
+<img src="assets/human_mode.png" width="500"/>
 
 ---
 
 ### 🤖 Human vs AI Mode
-![AI Mode](assets/ai_mode.png)
+<img src="assets/ai_mode.png" width="500"/>
 
 ---
 
 ### ⚙️ AI Difficulty Selection
-![AI Difficulty](assets/ai_diff.png)
+<img src="assets/ai_difficulty.png" width="500"/>
 
-</details>
 
 ---
-
 
 ## 🛠️ Installation
 
 ### Requirements
-- Python 3.11+  
-- Pygame library
+- Python **3.11+**
+- PyQt5
+
+Install dependencies:
 ```bash
-pip install pygame
+pip install PyQt5
 ```
 ---
 ## 🚀 Running the Game
@@ -110,4 +106,42 @@ git clone https://github.com/yourusername/quoridor-game.git
 cd quoridor-game
 python main.py
 ```
+---
+## 🎮 Controls Explanation
+
+The game is controlled through an intuitive graphical user interface using mouse and keyboard input.
+
+### 🧍 Pawn Movement
+- Click on your pawn to highlight all valid moves
+- Click on one of the highlighted squares to move the pawn
+- Illegal moves are automatically prevented
+
+### 🧱 Wall Placement
+- Enable **Wall Placement Mode** from the interface
+- Click on a valid board edge to place a wall
+- Wall placement is rejected if it violates game rules or blocks all paths
+
+### 🔄 Game Controls
+- **Reset Game**: Restarts the game from the initial state
+
+### 🎯 Turn Management
+- The interface displays:
+  - Current player’s turn
+  - Remaining wall count for each player
+  - Game status messages (invalid move, winner announcement)
+
+---
+
+## 🎥 Demo Video
+
+A short demonstration video showcasing the gameplay and features of the Quoridor game is available at the following link:
+
+🔗 **Demo Video:**  
+https://youtu.be/your-demo-video-link
+
+The demo video includes:
+- Game setup and UI overview  
+- Human vs Human gameplay  
+- Human vs AI gameplay  
+- AI difficulty selection  
 
