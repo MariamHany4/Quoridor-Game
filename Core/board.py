@@ -89,47 +89,72 @@ class Board:
         return True
 
     def is_diagonal_move(self, current, opponent, new_pos):
-        # Diagonal allowed only if adjacent to opponent and straight jump is blocked
+        
+        
+         
+        """
+        Diagonal move is allowed ONLY if:
+        1. Current pawn is adjacent to opponent
+        2. Straight jump over opponent is NOT possible
+        3. Diagonal square is valid and inside board
+        4. No wall blocks the diagonal path
+        """
+        
+        #  Must be adjacent to opponent
         if not self.is_adjacent(current, opponent):
             return False
 
-        dr = opponent[0] - current[0]
-        dc = opponent[1] - current[1]
-        jump_pos = (opponent[0] + dr, opponent[1] + dc)
+        cr, cc = current
+        or_, oc = opponent
+        nr, nc = new_pos
 
-        # Straight jump must be impossible (blocked edge or out of board)
+        dr = or_ - cr
+        dc = oc - cc
+    # Check if straight jump is possible
+        jump_pos = (or_ + dr, oc + dc)
         straight_jump_possible = (
-            self.inside_board(jump_pos)
-            and not self.is_wall_blocking(current, opponent)
-            and not self.is_wall_blocking(opponent, jump_pos)
+        self.inside_board(jump_pos)
+        and not self.is_wall_blocking(current, opponent)
+        and not self.is_wall_blocking(opponent, jump_pos)
         )
+
+       # If straight jump is possible → diagonal NOT allowed
         if straight_jump_possible:
             return False
 
-        # Diagonal targets depend on relative orientation
-        diagonals = []
-        if dr == 0:
-            # Opponent is left/right; diagonals go up or down around them
-            diagonals = [
-                (opponent[0] - 1, opponent[1]),
-                (opponent[0] + 1, opponent[1])
-            ]
-        elif dc == 0:
-            # Opponent is up/down; diagonals go left or right around them
-            diagonals = [
-                (opponent[0], opponent[1] - 1),
-                (opponent[0], opponent[1] + 1)
+        # 3️⃣ Determine valid diagonal squares
+        valid_diagonals = []
+
+        if dr == 0:  # opponent is left or right
+        # diagonals are up/down relative to current
+         valid_diagonals = [
+            (cr - 1, cc + dc),
+            (cr + 1, cc + dc)
+        ]
+        elif dc == 0: 
+            # opponent is up or down
+        # diagonals are left/right relative to current
+             valid_diagonals = [
+            (cr + dr, cc - 1),
+            (cr + dr, cc + 1)
             ]
 
-        if new_pos not in diagonals:
+    # Target must be one of the valid diagonals
+        if new_pos not in valid_diagonals:
             return False
+
+       # Must be inside board
         if not self.inside_board(new_pos):
             return False
+        
 
-        # Ensure the move edge is not blocked; and the edge from current to opponent is not blocked
+    # Wall checks
+    # Must be able to move from current → opponent
         if self.is_wall_blocking(current, opponent):
             return False
-        if self.is_wall_blocking(opponent, new_pos):
+
+    # Must be able to move from current → diagonal direction
+        if self.is_wall_blocking(current, new_pos):
             return False
 
         return True

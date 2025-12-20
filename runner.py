@@ -1,7 +1,7 @@
 # runner.py
 import sys
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt  # <-- import Qt here
+from PyQt5.QtCore import Qt 
 from GUI.start_screen import MainWindow  # Import main menu
 
 def main():
