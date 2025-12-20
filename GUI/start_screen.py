@@ -63,6 +63,32 @@ class MainWindow(QMainWindow):
         self.easy_btn.clicked.connect(lambda: self.start_ai("easy"))
         self.medium_btn.clicked.connect(lambda: self.start_ai("medium"))
         self.hard_btn.clicked.connect(lambda: self.start_ai("hard"))
+        # ===== Back button =====
+        self.back_btn = QPushButton("← Back")
+        self.back_btn.setFixedSize(120, 50)
+        self.back_btn.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #F48FB1,
+                    stop:1 #E91E63
+                );
+                color: white;
+                font-size: 20px;
+                font-weight: bold;
+                border-radius: 22px;
+                border: 3px solid #AD1457;
+            }
+            QPushButton:hover {
+                background: #EC407A;
+            }
+            QPushButton:pressed {
+                background: #C2185B;
+            }
+        """)
+        self.addShadow(self.back_btn, blur=20, x=0, y=6)
+        self.back_btn.hide()  # hide initially
+        self.back_btn.clicked.connect(self.hide_difficulty_options)
 
         self.initUI()
 
@@ -233,6 +259,7 @@ class MainWindow(QMainWindow):
             font-weight:bold;
             margin-bottom: 10px;
         """)
+        layout.addWidget(self.back_btn, alignment=Qt.AlignLeft)
 
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -268,10 +295,11 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.ai_player)
         layout.addWidget(self.human_player)
-
         # ===== Difficulty Buttons Layout =====
         self.difficulty_layout = QVBoxLayout()
         self.difficulty_layout.setAlignment(Qt.AlignCenter)
+
+
 
         for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
             btn.setCheckable(True)
@@ -315,6 +343,13 @@ class MainWindow(QMainWindow):
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
 
+    def hide_difficulty_options(self):
+        self.back_btn.hide()
+        for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
+            btn.hide()
+        self.ai_player.show()
+        self.human_player.show()
+
     # ===== Utilities =====
     def addShadow(self, widget, blur=20, x=0, y=6):
         shadow = QGraphicsDropShadowEffect(self)
@@ -348,6 +383,7 @@ class MainWindow(QMainWindow):
     def show_difficulty_options(self):
         self.ai_player.hide()
         self.human_player.hide()
+        self.back_btn.show()
         for btn in [self.easy_btn, self.medium_btn, self.hard_btn]:
             btn.show()
 
