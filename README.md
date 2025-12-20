@@ -102,9 +102,9 @@ pip install PyQt5
 ---
 ## 🚀 Running the Game
 ```bash
-git clone https://github.com/yourusername/quoridor-game.git
+git clone https://github.com/yourusername/quoridor-game.git](https://github.com/MariamHany4/Quoridor-Game.git
 cd quoridor-game
-python main.py
+python runner.py
 ```
 ---
 ## 🎮 Controls Explanation
