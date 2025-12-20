@@ -2,7 +2,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from Core.board import Board
-
+from Core.game_state import GameState
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -24,7 +24,8 @@ class BoardView(QWidget):
         self.mode = mode
         self.difficulty = difficulty
 
-
+        self.undo_stack = []
+        self.redo_stack = []
 
         self.setWindowTitle("Quoridor - Game Board")
         # Set window size
@@ -305,6 +306,18 @@ class BoardView(QWidget):
             background: #C2185B;
         }
         """
+        # ===== Undo / Redo Buttons =====
+        undo_btn = QPushButton("Undo")
+        redo_btn = QPushButton("Redo")
+
+        undo_btn.setStyleSheet(button_style)
+        redo_btn.setStyleSheet(button_style)
+
+        undo_btn.clicked.connect(self.undo)
+        redo_btn.clicked.connect(self.redo)
+
+        side_panel.addWidget(undo_btn)
+        side_panel.addWidget(redo_btn)
 
         reset_btn = QPushButton("Restart Game")
         reset_btn.setStyleSheet(button_style)
@@ -329,6 +342,9 @@ class BoardView(QWidget):
         main_layout_wrapper.addWidget(content_widget)
         self.setLayout(main_layout_wrapper)
 
+    def saveState(self):
+        self.undo_stack.append(GameState(self.board_created))
+        self.redo_stack.clear()  # redo invalid after new move
     def createTitleBar(self):
         """
                     Create custom title bar like start screen
@@ -513,7 +529,7 @@ class BoardView(QWidget):
         if self.action_mode == "move":
             old_r, old_c = self.board_created.pawns[current_player]
             color = "#AD1457" if current_player == "P1" else "#F48FB1"
-
+            self.saveState()
             moved = self.board_created.move_pawn(current_player, (r, c))
             if moved:
                 # Update board UI
@@ -538,7 +554,7 @@ class BoardView(QWidget):
         # ===== WALL MODE =====
         elif self.action_mode == "wall":
             placing_player = current_player
-
+            self.saveState()
             placed = self.board_created.place_wall(
                 current_player,
                 r,
@@ -547,6 +563,7 @@ class BoardView(QWidget):
             )
 
             if placed:
+
                 self.drawWall(r, c, self.wall_orientation, placing_player)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
                 self.updateWallsLabel()
@@ -725,6 +742,8 @@ class BoardView(QWidget):
         """
         Restart game
         """
+        self.undo_stack.clear()
+        self.redo_stack.clear()
         # Clear all cells
         for r in range(self.GRID_SIZE):
             for c in range(self.GRID_SIZE):
@@ -937,10 +956,11 @@ class BoardView(QWidget):
 
     def executeAction(self, action):
         current_player = self.board_created.current_player
-        color = "#F48FB1"  # AI color (P2)
+        color = "#F48FB1"  # AI color
 
         if action["type"] == "move":
             old_r, old_c = self.board_created.pawns[current_player]
+
             moved = self.board_created.move_pawn(current_player, action["to"])
             if moved:
                 self.clearCell(old_r, old_c)
@@ -960,3 +980,91 @@ class BoardView(QWidget):
                 self.drawWall(action["x"], action["y"], action["orientation"], current_player)
                 self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
                 self.updateWallsLabel()
+
+    def undo(self):
+        if not self.undo_stack:
+            return
+
+        steps = 2 if self.mode == "AI" else 1
+
+        for _ in range(steps):
+            if not self.undo_stack:
+                break
+            self.redo_stack.append(GameState(self.board_created))
+            prev_state = self.undo_stack.pop()
+            prev_state.restore(self.board_created)
+
+        self.refreshUI()
+
+    def redo(self):
+        if not self.redo_stack:
+            return
+
+        steps = 2 if self.mode == "AI" else 1
+
+        for _ in range(steps):
+            if not self.redo_stack:
+                break
+            self.undo_stack.append(GameState(self.board_created))
+            next_state = self.redo_stack.pop()
+            next_state.restore(self.board_created)
+
+        self.refreshUI()
+
+    def refreshUI(self):
+        """
+        Smoothly update pawns and walls based on board_created state
+        without clearing the entire UI.
+        """
+        # ---- Update pawns ----
+        for player, (r, c) in self.board_created.pawns.items():
+            color = "#AD1457" if player == "P1" else "#F48FB1"
+            btn = self.cells[(r, c)]
+            # Only update if the cell is empty or different
+            # Remove old pawn effect if exists
+            btn.setGraphicsEffect(None)
+            btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qradialgradient(
+                    cx:0.3, cy:0.3, radius:0.8,
+                    stop:0 #FFFFFF,
+                    stop:0.35 {color},
+                    stop:1 #880E4F
+                );
+                border-radius: 34px;
+                border: 4px solid #FFF0F7;
+                min-width: 68px;
+                min-height: 68px;
+            }}
+            """)
+            glow = QGraphicsDropShadowEffect(self)
+            glow.setBlurRadius(25)
+            glow.setOffset(0, 0)
+            glow.setColor(QColor(255, 192, 227, 180))
+            btn.setGraphicsEffect(glow)
+
+        # ---- Update walls ----
+        # Remove walls that are no longer in the state
+        current_walls = [
+            (w.x, w.y, w.orientation, w.player)
+            for w in getattr(self, "wall_labels", [])
+        ]
+        self.wall_labels.clear()  # optional if you always redraw walls
+
+        for wall_data in self.board_created.walls:
+            self.drawWall(
+                wall_data["x"],
+                wall_data["y"],
+                wall_data["orientation"],
+                wall_data["player"]
+            )
+
+        # ---- Update labels ----
+        self.label_turn.setText(f"Current Turn: {self.board_created.current_player}")
+        self.updateWallsLabel()
+
+        # ---- Redraw UI ----
+        QApplication.processEvents()
+
+
+
